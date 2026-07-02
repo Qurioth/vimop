@@ -35,7 +35,7 @@ jobs:
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           TARGET_CHANNEL_IDS: ${{ secrets.TARGET_CHANNEL_IDS }}
-          RETENTION_HOURS: "24"
+          RETENTION_HOURS: "168"
           RUN_EVERY_DAYS: "2"
           FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' }}
         run: python bot.py
