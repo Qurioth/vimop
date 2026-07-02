@@ -2,8 +2,8 @@ name: Discord Chat Cleaner
 
 on:
   schedule:
-    # Runs daily at 04:17 JST (19:17 UTC); bot.py processes every second day.
-    - cron: "17 19 * * *"
+    # Runs daily at 04:00 JST (19:00 UTC); bot.py processes every second day.
+    - cron: "0 19 * * *"
   workflow_dispatch:
 
 permissions:
