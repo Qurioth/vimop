@@ -1,0 +1,41 @@
+name: Discord Chat Cleaner
+
+on:
+  schedule:
+    # Runs daily at 04:17 JST (19:17 UTC); bot.py processes every second day.
+    - cron: "17 19 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: discord-chat-cleaner
+  cancel-in-progress: false
+
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Clean Discord messages
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          TARGET_CHANNEL_IDS: ${{ secrets.TARGET_CHANNEL_IDS }}
+          RETENTION_HOURS: "24"
+          RUN_EVERY_DAYS: "2"
+          FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' }}
+        run: python bot.py
