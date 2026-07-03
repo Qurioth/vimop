@@ -11,25 +11,12 @@ TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 RETENTION_HOURS = int(os.getenv("RETENTION_HOURS", "24"))
 RUN_EVERY_DAYS = int(os.getenv("RUN_EVERY_DAYS", "1"))
 FORCE_RUN = os.getenv("FORCE_RUN", "false").lower() == "true"
-
-# TARGET_CHANNEL_ID is retained for compatibility with the previous configuration.
-raw_channel_ids = os.getenv("TARGET_CHANNEL_IDS") or os.getenv("TARGET_CHANNEL_ID", "")
-
-try:
-    TARGET_CHANNEL_IDS = tuple(
-        int(channel_id.strip())
-        for channel_id in raw_channel_ids.split(",")
-        if channel_id.strip()
-    )
-except ValueError as error:
-    raise RuntimeError(
-        "TARGET_CHANNEL_IDS must contain comma-separated numeric channel IDs."
-    ) from error
+TARGET_ROLE_NAME = os.getenv("TARGET_ROLE_NAME", "Vimop")
 
 if not TOKEN:
     raise RuntimeError("DISCORD_BOT_TOKEN is not configured.")
-if not TARGET_CHANNEL_IDS:
-    raise RuntimeError("TARGET_CHANNEL_IDS is not configured.")
+if not TARGET_ROLE_NAME:
+    raise RuntimeError("TARGET_ROLE_NAME is not configured.")
 if RETENTION_HOURS <= 0:
     raise RuntimeError("RETENTION_HOURS must be at least 1.")
 if RUN_EVERY_DAYS <= 0:
@@ -48,6 +35,10 @@ class CleanerClient(discord.Client):
         self.cleanup_started = True
 
         print(f"Logged in as {self.user}")
+        print(f"Connected servers: {len(self.guilds)}")
+        for guild in self.guilds:
+            print(f"- {guild.name} ({guild.id})")
+
         try:
             await self.cleanup()
         except Exception as error:
@@ -66,29 +57,111 @@ class CleanerClient(discord.Client):
         cutoff = now - timedelta(hours=RETENTION_HOURS)
         total_deleted = 0
 
-        for channel_id in TARGET_CHANNEL_IDS:
-            total_deleted += await self.cleanup_channel(channel_id, cutoff)
+        for guild in self.guilds:
+            try:
+                target_role = self.get_target_role(guild)
+                total_deleted += await self.cleanup_guild(
+                    guild,
+                    target_role,
+                    cutoff,
+                )
+            except (RuntimeError, discord.Forbidden) as error:
+                print(
+                    f"WARNING: skipping server {guild.name} ({guild.id}): {error}"
+                )
 
         print(f"Cleanup complete: {total_deleted} messages deleted in total.")
 
-    async def cleanup_channel(self, channel_id: int, cutoff: datetime) -> int:
-        channel = self.get_channel(channel_id)
+    @staticmethod
+    def get_target_role(guild: discord.Guild) -> discord.Role:
+        matching_roles = [role for role in guild.roles if role.name == TARGET_ROLE_NAME]
+        if len(matching_roles) != 1:
+            raise RuntimeError(
+                f'Server {guild.id} must have exactly one role named '
+                f'"{TARGET_ROLE_NAME}"; found {len(matching_roles)}.'
+            )
 
-        if channel is None:
-            try:
-                channel = await self.fetch_channel(channel_id)
-            except (discord.NotFound, discord.Forbidden) as error:
-                print(f"Channel {channel_id}: not found or not accessible: {error}")
-                return 0
+        target_role = matching_roles[0]
+        required_permissions = (
+            "view_channel",
+            "manage_messages",
+            "read_message_history",
+        )
+        missing_permissions = [
+            name
+            for name in required_permissions
+            if not getattr(target_role.permissions, name)
+        ]
+        if missing_permissions:
+            raise RuntimeError(
+                f'Role "{TARGET_ROLE_NAME}" in server {guild.id} is missing '
+                f'required permissions: {", ".join(missing_permissions)}.'
+            )
 
-        if not isinstance(channel, (discord.TextChannel, discord.VoiceChannel)):
-            print(f"Channel {channel_id}: unsupported channel type.")
-            return 0
+        return target_role
+
+    async def cleanup_guild(
+        self,
+        guild: discord.Guild,
+        target_role: discord.Role,
+        cutoff: datetime,
+    ) -> int:
+
+        target_channels = []
+        for channel in guild.channels:
+            if not isinstance(channel, (discord.TextChannel, discord.VoiceChannel)):
+                continue
+
+            if self.is_cleanup_target(channel, target_role):
+                target_channels.append(channel)
+
+        print(
+            f'Server {guild.id}: found {len(target_channels)} channels with an '
+            f'explicit permission entry for role "{TARGET_ROLE_NAME}".'
+        )
+        for channel in target_channels:
+            print(f"Server {guild.id}: cleanup target #{channel.name} ({channel.id})")
+
+        deleted_count = 0
+        for channel in target_channels:
+            deleted_count += await self.cleanup_channel(channel, cutoff)
+
+        return deleted_count
+
+    @staticmethod
+    def is_cleanup_target(
+        channel: discord.TextChannel | discord.VoiceChannel,
+        role: discord.Role,
+    ) -> bool:
+        # The role must be explicitly selected on the channel or its synchronized
+        # category. @everyone and unrelated roles cannot select a cleanup target.
+        category = channel.category
+        role_is_selected = role in channel.overwrites or (
+            category is not None
+            and channel.permissions_synced
+            and role in category.overwrites
+        )
+        if not role_is_selected:
+            return False
+
+        effective = channel.permissions_for(role)
+        return (
+            effective.view_channel
+            and effective.read_message_history
+            and effective.manage_messages
+        )
+
+    async def cleanup_channel(
+        self,
+        channel: discord.TextChannel | discord.VoiceChannel,
+        cutoff: datetime,
+    ) -> int:
+        channel_id = channel.id
 
         deleted_count = 0
         checked_count = 0
 
-        async for message in channel.history(limit=1000, before=cutoff):
+        async for message in channel.history(limit=None, before=cutoff):
             checked_count += 1
             if message.pinned:
                 continue
