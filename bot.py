@@ -13,14 +13,16 @@ RUN_EVERY_DAYS = int(os.getenv("RUN_EVERY_DAYS", "1"))
 FORCE_RUN = os.getenv("FORCE_RUN", "false").lower() == "true"
 TARGET_ROLE_NAME = os.getenv("TARGET_ROLE_NAME", "Vimop")
 
-if not TOKEN:
-    raise RuntimeError("DISCORD_BOT_TOKEN is not configured.")
-if not TARGET_ROLE_NAME:
-    raise RuntimeError("TARGET_ROLE_NAME is not configured.")
-if RETENTION_HOURS <= 0:
-    raise RuntimeError("RETENTION_HOURS must be at least 1.")
-if RUN_EVERY_DAYS <= 0:
-    raise RuntimeError("RUN_EVERY_DAYS must be at least 1.")
+
+def validate_config() -> None:
+    if not TOKEN:
+        raise RuntimeError("DISCORD_BOT_TOKEN is not configured.")
+    if not TARGET_ROLE_NAME:
+        raise RuntimeError("TARGET_ROLE_NAME is not configured.")
+    if RETENTION_HOURS <= 0:
+        raise RuntimeError("RETENTION_HOURS must be at least 1.")
+    if RUN_EVERY_DAYS <= 0:
+        raise RuntimeError("RUN_EVERY_DAYS must be at least 1.")
 
 
 class CleanerClient(discord.Client):
@@ -185,9 +187,16 @@ class CleanerClient(discord.Client):
         return deleted_count
 
 
-intents = discord.Intents.default()
-client = CleanerClient(intents=intents)
-client.run(TOKEN)
+def main() -> None:
+    validate_config()
 
-if client.cleanup_error is not None:
-    raise client.cleanup_error
+    intents = discord.Intents.default()
+    client = CleanerClient(intents=intents)
+    client.run(TOKEN)
+
+    if client.cleanup_error is not None:
+        raise client.cleanup_error
+
+
+if __name__ == "__main__":
+    main()
