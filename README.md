@@ -26,7 +26,18 @@ OAuthによって作成・付与されるロール名は、既定では `Vimop` 
 
 ## ローカル実行
 
-Python 3.12を使用します。
+Python 3.12を使用します。バージョンは [mise](https://mise.jdx.dev/) で管理しています（`mise.toml`）。
+
+```powershell
+mise trust
+mise install
+mise run install
+Copy-Item .env.example .env
+```
+
+`mise install` でPython 3.12が入り、`.venv` が自動で作成・有効化されます。
+
+miseを使わない場合は次のとおりです。
 
 ```powershell
 python -m venv .venv
@@ -48,6 +59,8 @@ FORCE_RUN=true
 実行します。
 
 ```powershell
+mise run run
+# または
 python bot.py
 ```
 

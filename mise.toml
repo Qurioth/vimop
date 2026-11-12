@@ -1,0 +1,16 @@
+[tools]
+# GitHub Actions (.github/workflows/discord-cleaner.yml) と同じバージョンに揃える
+python = "3.12"
+
+[env]
+# ディレクトリに入ると .venv を自動作成・有効化する
+# uv で作成される場合も pip を入れておく（--seed）
+_.python.venv = { path = ".venv", create = true, uv_create_args = ["--seed"] }
+
+[tasks.install]
+description = "依存パッケージをインストール"
+run = "python -m pip install -r requirements.txt"
+
+[tasks.run]
+description = "Botを実行（メッセージを実際に削除します）"
+run = "python bot.py"
