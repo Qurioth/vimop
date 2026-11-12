@@ -8,8 +8,12 @@ python = "3.12"
 _.python.venv = { path = ".venv", create = true, uv_create_args = ["--seed"] }
 
 [tasks.install]
-description = "依存パッケージをインストール"
-run = "python -m pip install -r requirements.txt"
+description = "依存パッケージをインストール（テスト用を含む）"
+run = "python -m pip install -r requirements-dev.txt"
+
+[tasks.test]
+description = "テストを実行"
+run = "python -m pytest"
 
 [tasks.run]
 description = "Botを実行（メッセージを実際に削除します）"

@@ -66,6 +66,18 @@ python bot.py
 
 この処理はメッセージを実際に削除します。削除は元に戻せないため、最初はテスト用サーバーとチャンネルで確認してください。
 
+## テスト
+
+Discordには接続せず、モックを使って削除対象の判定や削除処理を検証します。
+
+```powershell
+mise run test
+# または
+python -m pytest
+```
+
+`mise run install` でテスト用の依存（`requirements-dev.txt`）も入ります。`main` へのpushとPull RequestではGitHub Actions（`.github/workflows/test.yml`）でも実行されます。
+
 ## 環境変数
 
 | 名前 | 必須 | 既定値 | 説明 |
