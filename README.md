@@ -24,6 +24,8 @@ Discord Developer PortalでBotを作成し、OAuth2でサーバーへ招待し�
 
 OAuthによって作成・付与されるロール名は、既定では `Vimop` を想定しています。削除対象にするチャンネルの「チャンネル設定」→「権限」で、このロールを追加してください。個別権限が未設定でも、ロールが登録されていて上記3権限が実効的に許可されていれば対象になります。
 
+https://discord.com/oauth2/authorize?client_id=1522254911755255919&permissions=74752&integration_type=0&scope=bot+applications.commands
+
 ## ローカル実行
 
 Python 3.12を使用します。バージョンは [mise](https://mise.jdx.dev/) で管理しています（`mise.toml`）。
